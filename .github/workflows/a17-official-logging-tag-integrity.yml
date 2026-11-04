@@ -71,7 +71,7 @@ jobs:
           assert '"liburingutils"' in logdbp
           # The AOSP17 implementation supports the "color" -v format
           # modifier but does not keep the old PE-only -C convenience alias.
-          assert 'color      Show each priority' in cat or 'color       Show each priority' in cat
+          assert 'Show each priority with a different color.' in cat
           assert "case 'C':" not in cat, "legacy PE option unexpectedly present"
           sub=get("logd/","JSON").decode("utf-8")
           assert sub.startswith(")]}'")
