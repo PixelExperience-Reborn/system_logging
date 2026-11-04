@@ -62,7 +62,13 @@ jobs:
           assert 'name: "liblogger"' in rustbp
           assert 'int __android_log_is_debuggable()' in lprops
           assert "ro.debuggable" in lprops
-          assert "LogStatistics" in main and '"logd.statistics"' in main
+          # In AOSP17 statistics construction is tied to the selected
+          # serialized buffer, not the legacy logd.statistics property.
+          assert 'LogStatistics log_statistics(buffer_type == "serialized")' in main
+          assert '"logd.buffer_type"' in main
+          assert '"logd.statistics"' not in main, "old logd.statistics semantics reintroduced"
+          assert '"logd_flags_c_lib"' in logdbp
+          assert '"liburingutils"' in logdbp
           assert 'SetLogFormat("color")' in cat
           assert "case 'C':" in cat
           sub=get("logd/","JSON").decode("utf-8")
