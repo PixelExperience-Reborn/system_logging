@@ -69,8 +69,10 @@ jobs:
           assert '"logd.statistics"' not in main, "old logd.statistics semantics reintroduced"
           assert '"logd_flags_c_lib"' in logdbp
           assert '"liburingutils"' in logdbp
-          assert 'SetLogFormat("color")' in cat
-          assert "case 'C':" in cat
+          # The AOSP17 implementation supports the "color" -v format
+          # modifier but does not keep the old PE-only -C convenience alias.
+          assert 'color      Show each priority' in cat or 'color       Show each priority' in cat
+          assert "case 'C':" not in cat, "legacy PE option unexpectedly present"
           sub=get("logd/","JSON").decode("utf-8")
           assert sub.startswith(")]}'")
           sub_names={item["name"] for item in json.loads(sub.split("\n",1)[1])["entries"]}
