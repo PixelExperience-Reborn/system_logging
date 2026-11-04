@@ -1,0 +1,34 @@
+name: AOSP17 historical PE logging source audit
+
+on:
+  push:
+    branches:
+      - audit/a17-mondrian-logging-20261104
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  archived-logging:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          filter: blob:none
+          sparse-checkout: |
+            .github
+            docs
+            tools
+            TEST_MAPPING
+            liblog/properties.cpp
+            liblog/Android.bp
+            logcat/logcat.cpp
+            logd/main.cpp
+            logd/Android.bp
+            rust/Android.bp
+          sparse-checkout-cone-mode: false
+      - name: Check debug property, logcat CLI, logd controls and CTS inventory
+        run: python3 tools/verify_a17_logging_legacy.py
