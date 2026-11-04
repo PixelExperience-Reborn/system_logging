@@ -18,6 +18,18 @@ Date: 2026-11-04. **Historical source audit only; no ROM change, no log-access b
 
 Other sampled history merges upstream Android14 logging changes such as dropped-log integration tests, audit log spacing, binary flush and `logcat` help. **Do not count upstream merged changes as custom PE features.**
 
+## Confirmed Android17 source divergences (CI findings)
+
+The first [official source check](https://github.com/PixelExperience-Reborn/system_logging/actions/runs/41795463115) correctly failed an **incorrect legacy assumption**: Android17 `logd/main.cpp` no longer constructs statistics via the old `logd.statistics` property. Its code selects `logd.buffer_type` (default `serialized`) and constructs `LogStatistics log_statistics(buffer_type == "serialized")`. The test was corrected to insist on these exact official semantics and the `logd_flags_c_lib` and `liburingutils` build dependencies. **Do not modify official Android17 logd to make an Android14 test pass.**
+
+The next [source-check attempt](https://github.com/PixelExperience-Reborn/system_logging/actions/runs/41795660857) failed because official Android17 `logcat` does **not** contain the old PE short option `-C`, even though it supports color formatting through `-v color`. The final source check now confirms official `-v color` documentation and absence of the `-C` alias.
+
+- [x] Archived PE source CI [PASS #41795858753](https://github.com/PixelExperience-Reborn/system_logging/actions/runs/41795858753).
+- [x] Exact official Android17 r1 Git tree plus modern logd/logcat/liblog and AIDL/AConfig/Rust layout [PASS #41795858689](https://github.com/PixelExperience-Reborn/system_logging/actions/runs/41795858689).
+- [ ] Actual Android17 Soong/CTS/device/SELinux logging privacy tests.
+
+These are host/source integrity checks, **not** platform compilation or runtime tests.
+
 ## Platform and security requirements
 
 - Keep official Android17 logging on `/dev/socket/logdw`/`logdr`, `liblog` and `logd` with the correct init, logging UID/group, kernel/audit logs, log buffers and SELinux. Treat unprivileged access restrictions and role permissions as security boundaries.
