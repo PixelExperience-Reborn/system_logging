@@ -1,0 +1,75 @@
+name: AOSP17 official liblog, logd and logcat exact-tree integrity
+
+on:
+  push:
+    branches:
+      - audit/a17-mondrian-logging-20261104
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  official-logging:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          filter: blob:none
+          sparse-checkout: |
+            .github
+            docs
+            tools
+          sparse-checkout-cone-mode: false
+      - name: Verify exact official Android17 logging tree and security-related module layout
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import base64
+          import json
+          from urllib.request import Request, urlopen
+
+          base = "https://android.googlesource.com/platform/system/logging/+/refs/tags/android-17.0.0_r1/"
+          def get(path, fmt):
+              with urlopen(Request(base+path+"?format="+fmt,
+                                   headers={"User-Agent":"PixelExperience-Reborn-A17-log-source-audit"}),
+                           timeout=60) as result:
+                  return result.read()
+          def txt(path):
+              return base64.b64decode(get(path,"TEXT")).decode("utf-8")
+
+          raw=get("","JSON").decode("utf-8")
+          assert raw.startswith(")]}'"), "not Gitiles JSON"
+          tree=json.loads(raw.split("\n",1)[1])
+          assert tree["id"]=="2d287c1e04ae4ebd59b12f1b1aabcfa1f0fb8db4", tree.get("id")
+          names={item["name"] for item in tree["entries"]}
+          for directory in ("liblog","logcat","logd","logwrapper","rust"):
+              assert directory in names, directory
+
+          libbp=txt("liblog/Android.bp")
+          logdbp=txt("logd/Android.bp")
+          catbp=txt("logcat/Android.bp")
+          rustbp=txt("rust/Android.bp")
+          lprops=txt("liblog/properties.cpp")
+          main=txt("logd/main.cpp")
+          cat=txt("logcat/logcat.cpp")
+          for label,body in (("liblog",libbp),("logd",logdbp),("logcat",catbp)):
+              assert ('name: "'+label+'"') in body, label
+          assert '"liblog"' in logdbp
+          assert 'name: "liblogger"' in rustbp
+          assert 'int __android_log_is_debuggable()' in lprops
+          assert "ro.debuggable" in lprops
+          assert "LogStatistics" in main and '"logd.statistics"' in main
+          assert 'SetLogFormat("color")' in cat
+          assert "case 'C':" in cat
+          sub=get("logd/","JSON").decode("utf-8")
+          assert sub.startswith(")]}'")
+          sub_names={item["name"] for item in json.loads(sub.split("\n",1)[1])["entries"]}
+          for directory in ("binder","flags","fuzz","integration_test"):
+              assert directory in sub_names, directory
+          print("PASS: exact official Android17 logging r1 Git tree and liblog/logd/logcat/Rust source boundaries")
+          print("NOT TESTED: Soong, CTS, SELinux, log privacy, kernel/pstore or mondrian boot")
+          PY
